@@ -1,11 +1,8 @@
-// =============================================================
-//  Cardinal Cryptic — Game Logic
-// =============================================================
-
 const STORAGE_PREFIX = 'cryptic_state_';
 const MAX_GUESSES    = 5;
+const HINT_TYPES     = ['def', 'ind', 'fod'];
+const HINT_LABELS    = { def: 'Definition', ind: 'Indicator', fod: 'Fodder' };
 
-// ---- URL params ------------------------------------------------
 function getParams() {
   const p = new URLSearchParams(window.location.search);
   return {
@@ -34,18 +31,21 @@ function loadPuzzle() {
   } catch { return null; }
 }
 
-// ---- Game state ------------------------------------------------
 let puzzle        = null;
 let solved        = false;
-let gameOver      = false;   // true when out of guesses
-let inputLocked   = false;
+let gameOver      = false;
 let attempts      = 0;
 let hintsRevealed = new Set();
 let currentInput  = [];
+let tiles         = null;
+
+const elToastContainer = document.getElementById('toast-container');
+const elClueDisplay    = document.getElementById('clue-display');
+const elAnswerTiles    = document.getElementById('answer-tiles');
+const elGuessCounter   = document.getElementById('guess-counter');
 
 function storageKey() {
-  const id = puzzle.num || simpleHash(puzzle.clue);
-  return `${STORAGE_PREFIX}${id}`;
+  return `${STORAGE_PREFIX}${puzzle.num || simpleHash(puzzle.clue)}`;
 }
 
 function simpleHash(str) {
@@ -81,51 +81,47 @@ function loadState() {
       solved = true;
       fillTilesCorrect();
       lockInput();
-      hintsRevealed.forEach(type => applyHintMenuStyle(type));
-      renderClueHighlights();
-      renderHintLegend();
-      updateGuessCounter();
     } else if (s.gameOver) {
       gameOver = true;
       lockInput();
-      hintsRevealed.forEach(type => applyHintMenuStyle(type));
-      renderClueHighlights();
-      renderHintLegend();
-      updateGuessCounter();
-    } else {
-      if (Array.isArray(s.currentInput) && s.currentInput.length) {
-        currentInput = s.currentInput;
-        syncTiles();
-      }
-      hintsRevealed.forEach(type => applyHintMenuStyle(type));
-      renderClueHighlights();
-      renderHintLegend();
-      updateGuessCounter();
+    } else if (Array.isArray(s.currentInput) && s.currentInput.length) {
+      currentInput = s.currentInput;
+      syncTiles();
     }
+
+    hintsRevealed.forEach(type => applyHintMenuStyle(type));
+    renderClueHighlights();
+    renderHintLegend();
+    updateGuessCounter();
   } catch {}
 }
 
-// ---- Build tiles -----------------------------------------------
 function buildAnswerTiles() {
-  const container = document.getElementById('answer-tiles');
-  container.innerHTML = '';
+  elAnswerTiles.innerHTML = '';
   const n    = puzzle.answer.length;
   const maxW = Math.min(460, window.innerWidth - 48);
   const gap  = 7;
   const size = Math.min(56, Math.floor((maxW - gap * (n - 1)) / n));
   const fs   = Math.max(0.88, size / 34).toFixed(2) + 'rem';
 
+  const frag = document.createDocumentFragment();
   for (let i = 0; i < n; i++) {
     const tile = document.createElement('div');
     tile.classList.add('ans-tile');
     tile.dataset.index = i;
     tile.style.cssText = `width:${size}px; height:${size}px; font-size:${fs};`;
-    container.appendChild(tile);
+    frag.appendChild(tile);
   }
+  elAnswerTiles.appendChild(frag);
+  tiles = [...elAnswerTiles.querySelectorAll('.ans-tile')];
+}
+
+function forEachTile(fn) {
+  tiles.forEach(fn);
 }
 
 function syncTiles() {
-  document.querySelectorAll('.ans-tile').forEach((tile, i) => {
+  forEachTile((tile, i) => {
     const ch = currentInput[i] || '';
     tile.textContent = ch;
     tile.classList.toggle('filled', !!ch);
@@ -134,7 +130,7 @@ function syncTiles() {
 }
 
 function fillTilesCorrect() {
-  document.querySelectorAll('.ans-tile').forEach((tile, i) => {
+  forEachTile((tile, i) => {
     tile.textContent = puzzle.answer[i];
     tile.classList.remove('filled', 'wrong');
     tile.classList.add('correct');
@@ -142,7 +138,7 @@ function fillTilesCorrect() {
 }
 
 function fillTilesWrong() {
-  document.querySelectorAll('.ans-tile').forEach((tile, i) => {
+  forEachTile((tile, i) => {
     tile.textContent = currentInput[i] || '';
     tile.classList.remove('filled', 'correct');
     if (currentInput[i]) tile.classList.add('wrong');
@@ -150,31 +146,26 @@ function fillTilesWrong() {
 }
 
 function shakeTiles() {
-  const container = document.getElementById('answer-tiles');
-  container.classList.remove('shake');
-  void container.offsetWidth;
-  container.classList.add('shake');
-  container.addEventListener('animationend', () => container.classList.remove('shake'), { once: true });
+  elAnswerTiles.classList.remove('shake');
+  void elAnswerTiles.offsetWidth;
+  elAnswerTiles.classList.add('shake');
+  elAnswerTiles.addEventListener('animationend', () => elAnswerTiles.classList.remove('shake'), { once: true });
 }
 
-// ---- Guess counter ---------------------------------------------
 function updateGuessCounter() {
-  const el = document.getElementById('guess-counter');
-  if (solved || gameOver) { el.classList.add('hidden'); return; }
-  if (attempts === 0)     { el.classList.add('hidden'); return; }
+  if (solved || gameOver || attempts === 0) { elGuessCounter.classList.add('hidden'); return; }
 
   const remaining = MAX_GUESSES - attempts;
-  el.textContent  = remaining === 1
+  elGuessCounter.textContent = remaining === 1
     ? '1 guess remaining'
     : `${remaining} guesses remaining`;
-  el.classList.toggle('urgent', remaining === 1);
-  el.classList.remove('hidden');
+  elGuessCounter.classList.toggle('urgent', remaining === 1);
+  elGuessCounter.classList.remove('hidden');
 }
 
-// ---- Keyboard-driven input ------------------------------------
 function addLetter(letter) {
-  if (inputLocked || currentInput.length >= puzzle.answer.length) return;
-  const tile = document.querySelectorAll('.ans-tile')[currentInput.length];
+  if (solved || gameOver || currentInput.length >= puzzle.answer.length) return;
+  const tile = tiles[currentInput.length];
   currentInput.push(letter);
   tile.textContent = letter;
   tile.classList.add('filled');
@@ -185,9 +176,9 @@ function addLetter(letter) {
 }
 
 function deleteLetter() {
-  if (inputLocked || currentInput.length === 0) return;
+  if (solved || gameOver || currentInput.length === 0) return;
   currentInput.pop();
-  const tile = document.querySelectorAll('.ans-tile')[currentInput.length];
+  const tile = tiles[currentInput.length];
   tile.textContent = '';
   tile.classList.remove('filled', 'pop');
   saveState();
@@ -200,28 +191,27 @@ function handleKey(key) {
 }
 
 function lockInput() {
-  inputLocked = true;
   document.querySelectorAll('.key').forEach(k => k.disabled = true);
   document.querySelectorAll('#hints-menu .dropdown-item').forEach(b => b.disabled = true);
   document.getElementById('btn-open-breakdown').classList.remove('hidden');
 }
 
-// ---- Submit ----------------------------------------------------
 function submitAnswer() {
-  if (inputLocked) return;
+  if (solved || gameOver) return;
   if (currentInput.length < puzzle.answer.length) {
     showToast('Not enough letters');
     shakeTiles();
     return;
   }
 
+  attempts++;
   const guess = currentInput.join('');
+
   if (guess === puzzle.answer) {
     handleWin();
     return;
   }
 
-  attempts++;
   shakeTiles();
 
   if (attempts >= MAX_GUESSES) {
@@ -239,24 +229,24 @@ function submitAnswer() {
   }
 }
 
+function revealAllHints() {
+  HINT_TYPES.forEach(t => { if (puzzle[t].length) hintsRevealed.add(t); });
+  renderClueHighlights();
+  renderHintLegend();
+}
+
 function handleWin() {
   solved = true;
   saveState();
   lockInput();
   fillTilesCorrect();
 
-  document.querySelectorAll('.ans-tile').forEach((tile, i) =>
+  forEachTile((tile, i) =>
     setTimeout(() => tile.classList.add('bounce'), i * 80)
   );
 
   showToast('Brilliant!', 2200);
-
-  setTimeout(() => {
-    ['def', 'ind', 'fod'].forEach(t => { if (puzzle[t].length) hintsRevealed.add(t); });
-    renderClueHighlights();
-    renderHintLegend();
-  }, 500);
-
+  setTimeout(revealAllHints, 500);
   setTimeout(() => openBreakdownModal(true), 1600);
 }
 
@@ -265,31 +255,23 @@ function handleLoss() {
   saveState();
   lockInput();
   fillTilesWrong();
-
-  setTimeout(() => {
-    ['def', 'ind', 'fod'].forEach(t => { if (puzzle[t].length) hintsRevealed.add(t); });
-    renderClueHighlights();
-    renderHintLegend();
-  }, 300);
-
+  setTimeout(revealAllHints, 300);
   setTimeout(() => openBreakdownModal(false), 900);
 }
 
-// ---- Breakdown modal ------------------------------------------
 function openBreakdownModal(won) {
   const status  = document.getElementById('breakdown-status');
   const content = document.getElementById('breakdown-content');
 
-  status.textContent = won ? `Solved in ${attempts + 1} guess${attempts + 1 === 1 ? '' : 'es'}!` : 'Better luck next time!';
+  status.textContent = won ? `Solved in ${attempts} guess${attempts === 1 ? '' : 'es'}!` : 'Better luck next time!';
   status.className   = won ? 'won' : 'lost';
 
-  const labels = { def: 'Definition', ind: 'Indicator', fod: 'Fodder' };
-  const parts  = ['def', 'ind', 'fod']
+  const parts = HINT_TYPES
     .filter(t => puzzle[t].length)
     .map(t => {
       const display = puzzle[t].map(p => `"${escHtml(p)}"`).join(', ');
       return `<div class="exp-part">
-        <span class="exp-badge ${t}">${labels[t]}</span>
+        <span class="exp-badge ${t}">${HINT_LABELS[t]}</span>
         <span class="exp-part-text">${display}</span>
       </div>`;
     })
@@ -304,7 +286,6 @@ function openBreakdownModal(won) {
   openModal('breakdown');
 }
 
-// ---- Hints menu -----------------------------------------------
 function setupHintsMenu() {
   const wrapper = document.getElementById('hints-menu-wrapper');
   const toggle  = document.getElementById('btn-hints-menu');
@@ -342,7 +323,7 @@ function setupHintsMenu() {
 }
 
 function revealHint(type) {
-  if (hintsRevealed.has(type) || inputLocked || !puzzle[type].length) return;
+  if (hintsRevealed.has(type) || solved || gameOver || !puzzle[type].length) return;
   hintsRevealed.add(type);
   applyHintMenuStyle(type);
   renderClueHighlights();
@@ -353,21 +334,19 @@ function revealHint(type) {
 function applyHintMenuStyle(type) {
   const btn = document.getElementById(`menu-hint-${type}`);
   if (!btn) return;
-  const labels = { def: 'Definition ✓', ind: 'Indicator ✓', fod: 'Fodder ✓' };
-  btn.textContent = labels[type];
+  btn.textContent = `${HINT_LABELS[type]} ✓`;
   btn.classList.add(`revealed-${type}`);
   btn.disabled = true;
 }
 
-// ---- Clue rendering with highlights ---------------------------
 function renderClue() {
-  document.getElementById('clue-display').textContent = puzzle.clue;
+  elClueDisplay.textContent = puzzle.clue;
 }
 
 function renderClueHighlights() {
   const text = puzzle.clue;
   if (!hintsRevealed.size) {
-    document.getElementById('clue-display').textContent = text;
+    elClueDisplay.textContent = text;
     return;
   }
 
@@ -395,20 +374,19 @@ function renderClueHighlights() {
   }
   if (curType !== null) html += '</span>';
 
-  document.getElementById('clue-display').innerHTML = html;
+  elClueDisplay.innerHTML = html;
 }
 
 function renderHintLegend() {
   const legend = document.getElementById('hint-legend');
   if (!hintsRevealed.size) { legend.classList.add('hidden'); return; }
 
-  const labels = { def: 'Definition', ind: 'Indicator', fod: 'Fodder' };
   legend.innerHTML = [...hintsRevealed]
     .map(type => {
       const display = puzzle[type].map(p => `"${escHtml(p)}"`).join(', ');
       return `<div class="legend-item">
         <div class="legend-dot ${type}"></div>
-        <span class="legend-label">${labels[type]}</span>
+        <span class="legend-label">${HINT_LABELS[type]}</span>
         <span class="legend-text">${display}</span>
       </div>`;
     })
@@ -416,18 +394,15 @@ function renderHintLegend() {
   legend.classList.remove('hidden');
 }
 
-// ---- Toast ----------------------------------------------------
 function showToast(message, duration = 1800) {
-  const container = document.getElementById('toast-container');
   const toast = document.createElement('div');
   toast.classList.add('toast');
   toast.textContent = message;
   toast.style.animationDuration = `${duration / 1000}s`;
-  container.appendChild(toast);
+  elToastContainer.appendChild(toast);
   setTimeout(() => toast.remove(), duration);
 }
 
-// ---- Utility --------------------------------------------------
 function escHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')
@@ -436,7 +411,6 @@ function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-// ---- Modals ---------------------------------------------------
 function openModal(name)  { document.getElementById(`modal-${name}`).classList.remove('hidden'); }
 function closeModal(name) { document.getElementById(`modal-${name}`).classList.add('hidden'); }
 
@@ -449,7 +423,6 @@ document.querySelectorAll('.modal').forEach(modal =>
   })
 );
 
-// ---- Global event listeners -----------------------------------
 document.addEventListener('keydown', e => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if      (e.key === 'Backspace')      handleKey('BACKSPACE');
@@ -470,17 +443,12 @@ document.getElementById('btn-start-over').addEventListener('click', () => {
   location.reload();
 });
 
-// ---- Init -----------------------------------------------------
 function init() {
   puzzle = loadPuzzle();
 
   if (!puzzle) {
     document.getElementById('no-puzzle').classList.remove('hidden');
     return;
-  }
-
-  if (puzzle.num) {
-    document.getElementById('puzzle-label').textContent = `Puzzle #${puzzle.num}`;
   }
 
   document.getElementById('clue-card').classList.remove('hidden');
