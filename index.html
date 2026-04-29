@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cardinal Cryptic</title>
+  <link rel="icon" href="assets/logo.png" type="image/png">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Toast notifications -->
+  <div id="toast-container" aria-live="polite"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="header-left">
+      <a href="https://stanforddaily.com/category/games/" target="_blank" rel="noopener" class="icon-btn" aria-label="How to play">?</a>
+      <div class="header-menu-wrapper hidden" id="hints-menu-wrapper">
+        <button id="btn-hints-menu" class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="hints-menu" aria-label="Hints">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 14c.2-1 .7-1.7 1.5-2.5C17.9 10.1 18.5 8.1 18 6c-.7-2.8-3.3-4.7-6.2-4.7C8.3 1.3 5.4 4 5 7.5c-.2 1.8.4 3.4 1.5 4.5.8.8 1.3 1.5 1.5 2.5"/>
+            <polyline points="9 18 15 18"/>
+            <polyline points="10 22 14 22"/>
+          </svg>
+        </button>
+        <div id="hints-menu" class="header-dropdown" role="menu" aria-label="Hints">
+          <button class="dropdown-item" id="menu-hint-def" role="menuitem" data-type="def">Reveal Definition</button>
+          <button class="dropdown-item" id="menu-hint-ind" role="menuitem" data-type="ind">Reveal Indicator</button>
+          <button class="dropdown-item" id="menu-hint-fod" role="menuitem" data-type="fod">Reveal Fodder</button>
+        </div>
+      </div>
+    </div>
+    <div class="header-center">
+      <h1><img src="assets/cardinalcryptic.png" alt="Cardinal Cryptic" class="header-logo"></h1>
+      <span class="header-sub" id="puzzle-label">Daily Cryptic Clue</span>
+    </div>
+    <div class="header-right">
+      <button id="btn-open-breakdown" class="icon-btn hidden" aria-label="See clue breakdown">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+          <line x1="8" y1="8" x2="16" y2="8"/>
+          <line x1="8" y1="12" x2="16" y2="12"/>
+          <line x1="8" y1="16" x2="12" y2="16"/>
+        </svg>
+      </button>
+      <button id="btn-start-over" class="icon-btn" aria-label="Start over">
+        <svg width="20" height="20" viewBox="0 0 30 30" fill="currentColor" aria-hidden="true">
+          <path d="M 15 3 C 12.031398 3 9.3028202 4.0834384 7.2070312 5.875 A 1.0001 1.0001 0 1 0 8.5058594 7.3945312 C 10.25407 5.9000929 12.516602 5 15 5 C 20.19656 5 24.450989 8.9379267 24.951172 14 L 22 14 L 26 20 L 30 14 L 26.949219 14 C 26.437925 7.8516588 21.277839 3 15 3 z M 4 10 L 0 16 L 3.0507812 16 C 3.562075 22.148341 8.7221607 27 15 27 C 17.968602 27 20.69718 25.916562 22.792969 24.125 A 1.0001 1.0001 0 1 0 21.494141 22.605469 C 19.74593 24.099907 17.483398 25 15 25 C 9.80344 25 5.5490109 21.062074 5.0488281 16 L 8 16 L 4 10 z"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- No puzzle loaded -->
+    <div id="no-puzzle" class="hidden">
+      <p>No puzzle loaded.</p>
+      <p>Use the generator to create an embed link.</p>
+    </div>
+
+    <!-- Clue card -->
+    <div id="clue-card" class="hidden">
+      <div class="card-header"><span id="clue-label">Today's Clue</span></div>
+      <div id="clue-text-area">
+        <p id="clue-display" aria-label="Cryptic clue"></p>
+      </div>
+      <div id="hint-legend" class="hidden"></div>
+    </div>
+
+    <!-- Answer area -->
+    <div id="answer-area" class="hidden">
+      <div id="answer-tiles" aria-label="Answer boxes" role="group"></div>
+      <div id="guess-counter" class="hidden" aria-live="polite"></div>
+    </div>
+
+    <!-- On-screen keyboard -->
+    <div id="keyboard" role="group" aria-label="Letter keyboard">
+      <div class="kb-row">
+        <button class="key" data-key="Q">Q</button>
+        <button class="key" data-key="W">W</button>
+        <button class="key" data-key="E">E</button>
+        <button class="key" data-key="R">R</button>
+        <button class="key" data-key="T">T</button>
+        <button class="key" data-key="Y">Y</button>
+        <button class="key" data-key="U">U</button>
+        <button class="key" data-key="I">I</button>
+        <button class="key" data-key="O">O</button>
+        <button class="key" data-key="P">P</button>
+      </div>
+      <div class="kb-row">
+        <div class="key-spacer"></div>
+        <button class="key" data-key="A">A</button>
+        <button class="key" data-key="S">S</button>
+        <button class="key" data-key="D">D</button>
+        <button class="key" data-key="F">F</button>
+        <button class="key" data-key="G">G</button>
+        <button class="key" data-key="H">H</button>
+        <button class="key" data-key="J">J</button>
+        <button class="key" data-key="K">K</button>
+        <button class="key" data-key="L">L</button>
+        <div class="key-spacer"></div>
+      </div>
+      <div class="kb-row">
+        <button class="key key-wide" data-key="ENTER">Enter</button>
+        <button class="key" data-key="Z">Z</button>
+        <button class="key" data-key="X">X</button>
+        <button class="key" data-key="C">C</button>
+        <button class="key" data-key="V">V</button>
+        <button class="key" data-key="B">B</button>
+        <button class="key" data-key="N">N</button>
+        <button class="key" data-key="M">M</button>
+        <button class="key key-wide" data-key="BACKSPACE">&#9003;</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Breakdown modal -->
+  <div id="modal-breakdown" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="breakdown-title">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 id="breakdown-title">Clue Breakdown</h2>
+        <button class="modal-close" data-modal="breakdown" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body breakdown-body">
+        <div id="breakdown-status"></div>
+        <div id="breakdown-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Platform by Anna Yang.</footer>
+
+  <script src="game.js"></script>
+</body>
+</html>

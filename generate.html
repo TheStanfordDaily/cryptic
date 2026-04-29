@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cardinal Cryptic — Puzzle Generator</title>
+  <style>
+    :root {
+      --cardinal:      #8c1515;
+      --cardinal-dark: #5f0a0a;
+      --bg:            #f0e9de;
+      --bg-card:       #faf6f1;
+      --text:          #1e1b18;
+      --text-light:    #6b6560;
+      --text-white:    #ffffff;
+      --correct:       #2d7a4f;
+      --color-def:     #c97b2a;
+      --color-ind:     #8c1515;
+      --color-fod:     #2d7a4f;
+      --radius:        14px;
+      --font-sans:     'Helvetica Neue', Arial, sans-serif;
+      --font-serif:    Georgia, 'Times New Roman', serif;
+      --transition:    0.18s ease;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      background-image: repeating-linear-gradient(
+        0deg, transparent, transparent 39px,
+        rgba(0,0,0,0.025) 39px, rgba(0,0,0,0.025) 40px
+      );
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      width: 100%;
+      background: linear-gradient(135deg, var(--cardinal) 0%, var(--cardinal-dark) 100%);
+      color: var(--text-white);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 18px 20px 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    }
+    header h1 {
+      font-family: var(--font-serif);
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    header p {
+      font-size: 0.6rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+      margin-top: 3px;
+    }
+
+    main {
+      width: 100%;
+      max-width: 580px;
+      padding: 28px 16px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      box-shadow: 0 4px 28px rgba(0,0,0,0.10);
+      overflow: hidden;
+    }
+
+    .card-header {
+      background: linear-gradient(135deg, var(--cardinal) 0%, var(--cardinal-dark) 100%);
+      padding: 11px 20px 10px;
+    }
+    .card-header h2 {
+      color: var(--text-white);
+      font-family: var(--font-serif);
+      font-size: 0.95rem;
+      letter-spacing: 0.06em;
+    }
+
+    .card-body {
+      padding: 22px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .field label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-light);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .label-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .label-dot.def { background: var(--color-def); }
+    .label-dot.ind { background: var(--color-ind); }
+    .label-dot.fod { background: var(--color-fod); }
+
+    .field input,
+    .field textarea {
+      font-family: var(--font-sans);
+      font-size: 0.92rem;
+      padding: 10px 13px;
+      border: 1.5px solid #ddd4c8;
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color var(--transition);
+      resize: vertical;
+    }
+    .field input:focus,
+    .field textarea:focus { border-color: var(--cardinal); }
+    .field input.error,
+    .field textarea.error { border-color: #c0392b; }
+    .field .hint {
+      font-size: 0.68rem;
+      color: var(--text-light);
+      line-height: 1.4;
+    }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 14px;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #e8e0d6;
+      margin: 4px 0 0;
+    }
+
+    .section-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-light);
+      margin-bottom: 4px;
+    }
+
+    .btn-generate {
+      background: linear-gradient(135deg, var(--cardinal) 0%, var(--cardinal-dark) 100%);
+      color: var(--text-white);
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-family: var(--font-sans);
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: filter var(--transition), transform 0.1s;
+      align-self: flex-start;
+    }
+    .btn-generate:hover  { filter: brightness(1.12); }
+    .btn-generate:active { transform: scale(0.97); }
+
+    .error-msg {
+      font-size: 0.78rem;
+      color: #c0392b;
+      font-weight: 600;
+      display: none;
+    }
+    .error-msg.visible { display: block; }
+
+    /* Output card */
+    #output-card { display: none; }
+    #output-card.visible { display: block; }
+
+    .output-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-light);
+      margin-bottom: 8px;
+    }
+
+    .code-wrap { position: relative; }
+    .code-box {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.76rem;
+      line-height: 1.6;
+      background: #f5f0ea;
+      border: 1.5px solid #ddd4c8;
+      border-radius: 8px;
+      padding: 14px;
+      white-space: pre;
+      overflow-x: auto;
+      color: var(--text);
+      user-select: all;
+      cursor: text;
+    }
+
+    .btn-copy {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: var(--cardinal);
+      color: var(--text-white);
+      border: none;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-family: var(--font-sans);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: filter var(--transition);
+    }
+    .btn-copy:hover  { filter: brightness(1.15); }
+    .btn-copy.copied { background: var(--correct); }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      padding: 14px 0 0;
+      border-top: 1px solid #e8e0d6;
+      margin-top: 6px;
+    }
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .meta-item span:first-child {
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-light);
+      font-weight: 700;
+    }
+    .meta-item span:last-child {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--cardinal);
+      font-family: var(--font-serif);
+      word-break: break-all;
+    }
+
+    /* Preview link */
+    .preview-link {
+      font-size: 0.78rem;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #e8e0d6;
+    }
+    .preview-link a {
+      color: var(--cardinal);
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Cardinal Cryptic — Puzzle Generator</h1>
+    <p>Internal use only</p>
+  </header>
+
+  <main>
+
+    <!-- Input card -->
+    <div class="card">
+      <div class="card-header"><h2>Puzzle Settings</h2></div>
+      <div class="card-body">
+
+        <!-- Clue + puzzle number -->
+        <div class="row-2">
+          <div class="field">
+            <label>Clue</label>
+            <input type="text" id="clue-input"
+              placeholder="e.g. Confused alien (5)"
+              autocomplete="off" spellcheck="false" />
+            <span class="hint">Include the answer length in parentheses</span>
+          </div>
+          <div class="field">
+            <label>Puzzle #</label>
+            <input type="number" id="puzzle-num" placeholder="1" min="1" />
+            <span class="hint">Displayed number</span>
+          </div>
+        </div>
+
+        <!-- Answer -->
+        <div class="field">
+          <label>Answer</label>
+          <input type="text" id="answer-input"
+            placeholder="e.g. LIANE"
+            autocomplete="off" autocorrect="off" spellcheck="false" />
+          <span class="hint">Letters only — no spaces or hyphens</span>
+        </div>
+
+        <hr class="divider" />
+        <div class="section-label">Clue structure (for hints)</div>
+
+        <!-- Definition -->
+        <div class="field">
+          <label><div class="label-dot def"></div>Definition</label>
+          <input type="text" id="def-input"
+            placeholder='"word"  or  "part one", "part two"'
+            autocomplete="off" spellcheck="false" />
+          <span class="hint">Quote each part. Multiple parts if non-contiguous.</span>
+        </div>
+
+        <!-- Indicator -->
+        <div class="field">
+          <label><div class="label-dot ind"></div>Indicator</label>
+          <input type="text" id="ind-input"
+            placeholder='"confused"  or  "broken", "all over"'
+            autocomplete="off" spellcheck="false" />
+          <span class="hint">Quote each word or phrase that signals the device.</span>
+        </div>
+
+        <!-- Fodder -->
+        <div class="field">
+          <label><div class="label-dot fod"></div>Fodder</label>
+          <input type="text" id="fod-input"
+            placeholder='"alien"  or  "cat", "door"'
+            autocomplete="off" spellcheck="false" />
+          <span class="hint">Quote each group of letters being manipulated.</span>
+        </div>
+
+        <hr class="divider" />
+
+        <!-- Explanation -->
+        <div class="field">
+          <label>Explanation</label>
+          <textarea id="exp-input" rows="3"
+            placeholder="e.g. Anagram of ALIEN gives LIANE, clued by 'confused'"
+            spellcheck="false"></textarea>
+          <span class="hint">Shown to the solver after they answer correctly</span>
+        </div>
+
+        <span class="error-msg" id="error-msg"></span>
+        <button class="btn-generate" id="btn-generate">Generate Embed Code</button>
+      </div>
+    </div>
+
+    <!-- Output card -->
+    <div class="card" id="output-card">
+      <div class="card-header"><h2>Embed Code</h2></div>
+      <div class="card-body">
+        <div class="output-label">WordPress / Custom HTML block</div>
+        <div class="code-wrap">
+          <pre class="code-box" id="code-output"></pre>
+          <button class="btn-copy" id="btn-copy">Copy</button>
+        </div>
+        <div class="meta-row">
+          <div class="meta-item">
+            <span>Answer</span>
+            <span id="meta-answer">—</span>
+          </div>
+          <div class="meta-item">
+            <span>Puzzle #</span>
+            <span id="meta-puzzle">—</span>
+          </div>
+          <div class="meta-item">
+            <span>Encoded (d=)</span>
+            <span id="meta-encoded">—</span>
+          </div>
+        </div>
+        <div class="preview-link">
+          <a id="preview-link" href="#" target="_blank">Open preview ↗</a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    const BASE_URL = new URL('index.html', location.href).href;
+
+    const clueInput  = document.getElementById('clue-input');
+    const ansInput   = document.getElementById('answer-input');
+    const puzzleNum  = document.getElementById('puzzle-num');
+    const defInput   = document.getElementById('def-input');
+    const indInput   = document.getElementById('ind-input');
+    const fodInput   = document.getElementById('fod-input');
+    const expInput   = document.getElementById('exp-input');
+    const errorMsg   = document.getElementById('error-msg');
+    const outputCard = document.getElementById('output-card');
+    const codeOutput = document.getElementById('code-output');
+    const btnCopy    = document.getElementById('btn-copy');
+
+    // Auto-uppercase answer field
+    ansInput.addEventListener('input', () => {
+      const pos = ansInput.selectionStart;
+      ansInput.value = ansInput.value.toUpperCase().replace(/[^A-Z]/g, '');
+      ansInput.setSelectionRange(pos, pos);
+    });
+
+    function showError(msg, field) {
+      errorMsg.textContent = msg;
+      errorMsg.classList.add('visible');
+      if (field) { field.classList.add('error'); field.focus(); }
+    }
+    function clearError() {
+      errorMsg.classList.remove('visible');
+      [clueInput, ansInput, puzzleNum].forEach(f => f.classList.remove('error'));
+    }
+
+    // Parse  "part one", "part two"  →  ["part one", "part two"]
+    // Falls back to treating the whole string as one part if no quotes found.
+    function parseQuotedList(raw) {
+      raw = raw.trim();
+      if (!raw) return [];
+      const matches = [...raw.matchAll(/"([^"]*)"/g)].map(m => m[1]).filter(Boolean);
+      return matches.length ? matches : [raw];
+    }
+
+    document.getElementById('btn-generate').addEventListener('click', () => {
+      clearError();
+
+      const clue   = clueInput.value.trim();
+      const answer = ansInput.value.trim().toUpperCase();
+      const num    = puzzleNum.value.trim();
+      const def    = parseQuotedList(defInput.value);
+      const ind    = parseQuotedList(indInput.value);
+      const fod    = parseQuotedList(fodInput.value);
+      const exp    = expInput.value.trim();
+
+      if (!clue) {
+        showError('Clue is required.', clueInput); return;
+      }
+      if (!/^[A-Z]{1,}$/.test(answer)) {
+        showError('Answer must contain only letters (A–Z).', ansInput); return;
+      }
+      if (!num || isNaN(num) || parseInt(num) < 1) {
+        showError('Puzzle number must be a positive integer.', puzzleNum); return;
+      }
+
+      // Warn if any part doesn't appear verbatim in the clue (non-fatal)
+      const warnings = [];
+      const check = (parts, label) =>
+        parts.forEach(p => {
+          if (!clue.toLowerCase().includes(p.toLowerCase()))
+            warnings.push(`${label} "${p}" not found in clue text.`);
+        });
+      check(def, 'Definition');
+      check(ind, 'Indicator');
+      check(fod, 'Fodder');
+      if (warnings.length) {
+        const ok = confirm(
+          'Warning:\n• ' + warnings.join('\n• ') +
+          '\n\nThose parts will not be highlightable in the clue. Continue anyway?'
+        );
+        if (!ok) return;
+      }
+
+      const data = { clue, answer, def, ind, fod, exp };
+      const encoded  = btoa(JSON.stringify(data));
+      const gameUrl  = `${BASE_URL}?d=${encoded}&p=${parseInt(num)}`;
+
+      const iframeCode = `<div style="max-width:520px; margin:0 auto;">\n  <iframe\n    src="${gameUrl}"\n    width="100%"\n    height="640"\n    frameborder="0"\n    scrolling="no"\n    style="border:none; border-radius:8px; overflow:hidden;"\n    title="Cardinal Cryptic #${parseInt(num)}"\n    allow="clipboard-write">\n  </iframe>\n</div>`;
+
+      codeOutput.textContent = iframeCode;
+      document.getElementById('meta-answer').textContent  = answer;
+      document.getElementById('meta-puzzle').textContent  = `#${parseInt(num)}`;
+      document.getElementById('meta-encoded').textContent = encoded.slice(0, 24) + '…';
+
+      const previewLink = document.getElementById('preview-link');
+      previewLink.href = gameUrl;
+      previewLink.textContent = 'Open preview ↗';
+
+      outputCard.classList.add('visible');
+      outputCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      btnCopy.textContent = 'Copy';
+      btnCopy.classList.remove('copied');
+    });
+
+    btnCopy.addEventListener('click', () => {
+      const text = codeOutput.textContent;
+      const copy = (t) => {
+        navigator.clipboard.writeText(t).then(onCopied).catch(fallback);
+      };
+      const fallback = () => {
+        const el = Object.assign(document.createElement('textarea'),
+          { value: text, readOnly: true });
+        Object.assign(el.style, { position: 'fixed', opacity: '0' });
+        document.body.appendChild(el);
+        el.select(); document.execCommand('copy'); el.remove();
+        onCopied();
+      };
+      const onCopied = () => {
+        btnCopy.textContent = 'Copied!';
+        btnCopy.classList.add('copied');
+        setTimeout(() => { btnCopy.textContent = 'Copy'; btnCopy.classList.remove('copied'); }, 2500);
+      };
+      if (navigator.clipboard && window.isSecureContext) copy(text); else fallback();
+    });
+
+    // Enter key triggers generate from any field
+    [clueInput, ansInput, puzzleNum, defInput, indInput, fodInput].forEach(el =>
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('btn-generate').click();
+      })
+    );
+  </script>
+
+</body>
+</html>
