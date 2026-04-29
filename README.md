@@ -55,8 +55,7 @@ In the WordPress block editor, add a **Custom HTML** block and paste the copied 
     width="100%"
     height="640"
     frameborder="0"
-    scrolling="no"
-    style="border:none; border-radius:8px; overflow:hidden;"
+    style="border:none; border-radius:8px;"
     title="Cardinal Cryptic #1"
     allow="clipboard-write">
   </iframe>
