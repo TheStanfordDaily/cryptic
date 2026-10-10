@@ -478,8 +478,11 @@
       }
 
       const data = { clue, answer, def, ind, fod, exp };
-      const encoded  = btoa(JSON.stringify(data));
-      const gameUrl  = `${BASE_URL}?d=${encoded}&p=${parseInt(num)}`;
+      // Escape Unicode in JSON so btoa can encode it and older game links
+      // still decode with JSON.parse(atob(d)), preserving the original text.
+      const encoded = btoa(JSON.stringify(data).replace(/[\u007f-\uffff]/g,
+        char => '\\u' + char.charCodeAt(0).toString(16).padStart(4, '0')));
+      const gameUrl = `${BASE_URL}?d=${encodeURIComponent(encoded)}&p=${parseInt(num)}`;
 
       const iframeCode = `<div style="max-width:520px; margin:0 auto;">\n  <iframe\n    src="${gameUrl}"\n    width="100%"\n    height="525"\n    frameborder="0"\n    style="border:none; border-radius:8px;"\n    title="Cardinal Cryptic #${parseInt(num)}"\n    allow="clipboard-write">\n  </iframe>\n</div>`;
 
