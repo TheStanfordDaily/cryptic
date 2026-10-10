@@ -200,6 +200,22 @@ main {
   padding: 0 1px;
 }
 
+/* Stack underlines when words serve more than one revealed role. */
+.hl-def.hl-ind { --highlight-bands: var(--color-def) 0 50%, var(--color-ind) 50% 100%; }
+.hl-def.hl-fod { --highlight-bands: var(--color-def) 0 50%, var(--color-fod) 50% 100%; }
+.hl-ind.hl-fod { --highlight-bands: var(--color-ind) 0 50%, var(--color-fod) 50% 100%; }
+.hl-def.hl-ind.hl-fod {
+  --highlight-bands: var(--color-def) 0 33.333%, var(--color-ind) 33.333% 66.667%, var(--color-fod) 66.667% 100%;
+  --highlight-height: 9px;
+}
+.hl-def.hl-ind, .hl-def.hl-fod, .hl-ind.hl-fod {
+  background: linear-gradient(to bottom, var(--highlight-bands)) left bottom / 100% var(--highlight-height, 6px) no-repeat;
+  border-bottom: none;
+  padding-bottom: var(--highlight-height, 6px);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
 /* Hint legend (inside clue card) */
 #hint-legend {
   display: flex;

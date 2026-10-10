@@ -371,29 +371,36 @@ function renderClueHighlights() {
     return;
   }
 
-  const charType = new Array(text.length).fill(null);
+  const charTypes = Array.from({ length: text.length }, () => new Set());
   const mark = (parts, type) => {
     parts.forEach(substr => {
       const idx = text.toLowerCase().indexOf(substr.toLowerCase());
       if (idx < 0) return;
-      for (let i = idx; i < idx + substr.length; i++) charType[i] = type;
+      for (let i = idx; i < idx + substr.length; i++) charTypes[i].add(type);
     });
   };
 
-  if (hintsRevealed.has('fod')) mark(puzzle.fod, 'fod');
-  if (hintsRevealed.has('ind')) mark(puzzle.ind, 'ind');
-  if (hintsRevealed.has('def')) mark(puzzle.def, 'def');
+  const labels = { def: 'Definition', ind: 'Indicator', fod: 'Fodder' };
+  Object.keys(labels).forEach(type => {
+    if (hintsRevealed.has(type)) mark(puzzle[type], type);
+  });
 
-  let html = '', curType = null;
+  let html = '', curTypes = '';
   for (let i = 0; i < text.length; i++) {
-    if (charType[i] !== curType) {
-      if (curType !== null) html += '</span>';
-      if (charType[i] !== null) html += `<span class="hl-${charType[i]}">`;
-      curType = charType[i];
+    const types = [...charTypes[i]];
+    const key = types.join(' ');
+    if (key !== curTypes) {
+      if (curTypes) html += '</span>';
+      if (key) {
+        const classes = types.map(type => `hl-${type}`).join(' ');
+        const title = types.map(type => labels[type]).join(' + ');
+        html += `<span class="${classes}" title="${title}">`;
+      }
+      curTypes = key;
     }
     html += escHtml(text[i]);
   }
-  if (curType !== null) html += '</span>';
+  if (curTypes) html += '</span>';
 
   document.getElementById('clue-display').innerHTML = html;
 }
