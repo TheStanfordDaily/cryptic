@@ -265,6 +265,35 @@ main {
   gap: 7px;
   justify-content: center;
 }
+/* Long multi-word answers: one word per line */
+#answer-tiles.wrap {
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Tiles for one word of the answer (stays on one line) */
+.ans-word {
+  display: flex;
+  gap: inherit;
+}
+
+/* Dash between hyphenated parts, e.g. MOTHER-IN-LAW */
+.ans-hyphen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ans-hyphen::before {
+  content: '';
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: #9a8e83;
+}
+
+/* Extra space between words */
+.ans-space { flex-shrink: 0; }
 
 .ans-tile {
   border-radius: var(--radius-tile);

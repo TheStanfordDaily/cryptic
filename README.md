@@ -3,7 +3,7 @@
 1. Open `https://thestanforddaily.github.io/cryptic/generate` in a browser.
 2. Fill in the fields:
    - **Clue** — full clue text, e.g. `Confused alien (5)
-   - **Answer** — letters only, e.g. `LIANE`
+   - **Answer** — letters only, e.g. `LIANE`. For multi-word answers, separate words with spaces or hyphens, e.g. `NATURAL DISASTER` for (7, 8) or `MOTHER-IN-LAW` for (6-2-3). The generator warns if the answer doesn't match the clue's enumeration. Solvers type only the letters; the tiles show the word breaks.
    - **Puzzle #** — increment by one each day
    - **Definition / Indicator / Fodder** — quote each part: `"confused"` or `"cat", "door"` for non-contiguous parts
      The same words or phrases can appear in multiple fields, including partially overlapping phrases. Shared text shows stacked color underlines as each hint is revealed.

@@ -22,9 +22,13 @@ function loadPuzzle() {
     if (!obj.clue || !obj.answer) return null;
     // Normalize def/ind/fod to arrays (supports both old string and new array format)
     const toArr = v => Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : []);
+    const { answer, display, words } = parseAnswer(obj.answer);
+    if (!answer) return null;
     return {
       clue:   obj.clue,
-      answer: obj.answer.toUpperCase().replace(/[^A-Z]/g, ''),
+      answer,           // letters only, e.g. NATURALDISASTER (what the solver types)
+      display,          // with separators, e.g. NATURAL DISASTER
+      words,            // [['NATURAL'], ['DISASTER']]: words split on spaces, then hyphens
       def:    toArr(obj.def),
       ind:    toArr(obj.ind),
       fod:    toArr(obj.fod),
@@ -32,6 +36,22 @@ function loadPuzzle() {
       num,
     };
   } catch { return null; }
+}
+
+// Split an answer like "Natural disaster" or "mother-in-law" into words
+// (separated by spaces) made of hyphen-joined parts. Old single-word answers
+// parse to one word with one part, so existing links behave exactly as before.
+function parseAnswer(raw) {
+  const words = String(raw).toUpperCase()
+    .replace(/[^A-Z\s-]/g, '')
+    .split(/\s+/)
+    .map(w => w.split('-').filter(Boolean))
+    .filter(w => w.length);
+  return {
+    answer:  words.flat().join(''),
+    display: words.map(w => w.join('-')).join(' '),
+    words,
+  };
 }
 
 // ---- Game state ------------------------------------------------
@@ -106,22 +126,74 @@ function loadState() {
 }
 
 // ---- Build tiles -----------------------------------------------
+const MIN_ONE_LINE_TILE = 30;   // below this, wrap multi-word answers onto separate lines
+
+// Width of a row of tiles at a given tile size: tiles + gaps + separators.
+// A space between words counts as one extra gap-sized slot, a hyphen as a narrow slot.
+function rowWidth(words, size, gap) {
+  const letters  = words.flat().join('').length;
+  const hyphens  = words.reduce((s, w) => s + w.length - 1, 0);
+  const spaces   = words.length - 1;
+  const slots    = letters + hyphens + spaces;   // flex children
+  return letters * size + hyphens * hyphenWidth(size) + spaces * spaceWidth(size) + (slots - 1) * gap;
+}
+const spaceWidth  = size => Math.round(size * 0.35);
+const hyphenWidth = size => Math.round(size * 0.3);
+
+// Largest tile size (<= 56) that fits the given words on one row of width maxW.
+function fitSize(words, maxW, gap) {
+  let size = 56;
+  while (size > 12 && rowWidth(words, size, gap) > maxW) size--;
+  return size;
+}
+
 function buildAnswerTiles() {
   const container = document.getElementById('answer-tiles');
   container.innerHTML = '';
-  const n    = puzzle.answer.length;
-  const maxW = Math.min(460, window.innerWidth - 48);
-  const gap  = 7;
-  const size = Math.min(56, Math.floor((maxW - gap * (n - 1)) / n));
-  const fs   = Math.max(0.88, size / 34).toFixed(2) + 'rem';
+  const words = puzzle.words;
+  const maxW  = Math.min(460, window.innerWidth - 48);
+  const gap   = puzzle.answer.length > 10 ? 5 : 7;
 
-  for (let i = 0; i < n; i++) {
-    const tile = document.createElement('div');
-    tile.classList.add('ans-tile');
-    tile.dataset.index = i;
-    tile.style.cssText = `width:${size}px; height:${size}px; font-size:${fs};`;
-    container.appendChild(tile);
-  }
+  // Prefer a single row; if tiles would get too small, put each word on its own
+  // line (sized by the longest word) so long phrases stay readable on phones.
+  let size = fitSize(words, maxW, gap);
+  const wrap = words.length > 1 && size < MIN_ONE_LINE_TILE;
+  if (wrap) size = Math.min(44, ...words.map(w => fitSize([w], maxW, gap)));
+  const fs = Math.max(0.88, size / 34).toFixed(2) + 'rem';
+
+  container.classList.toggle('wrap', wrap);
+  container.style.gap = `${gap}px`;
+
+  let index = 0;
+  words.forEach((parts, wi) => {
+    const group = document.createElement('div');
+    group.classList.add('ans-word');
+    group.style.gap = `${gap}px`;
+    parts.forEach((part, pi) => {
+      if (pi > 0) {
+        const hyphen = document.createElement('div');
+        hyphen.classList.add('ans-hyphen');
+        hyphen.setAttribute('aria-hidden', 'true');
+        hyphen.style.cssText = `width:${hyphenWidth(size)}px; height:${size}px;`;
+        group.appendChild(hyphen);
+      }
+      for (const _ of part) {
+        const tile = document.createElement('div');
+        tile.classList.add('ans-tile');
+        tile.dataset.index = index++;
+        tile.style.cssText = `width:${size}px; height:${size}px; font-size:${fs};`;
+        group.appendChild(tile);
+      }
+    });
+    if (wi > 0 && !wrap) {
+      const space = document.createElement('div');
+      space.classList.add('ans-space');
+      space.setAttribute('aria-hidden', 'true');
+      space.style.width = `${spaceWidth(size)}px`;
+      container.appendChild(space);
+    }
+    container.appendChild(group);
+  });
 }
 
 function syncTiles() {
@@ -296,7 +368,7 @@ function openBreakdownModal(won) {
     .join('');
 
   content.innerHTML = `
-    <span class="exp-answer">${escHtml(puzzle.answer)}</span>
+    <span class="exp-answer">${escHtml(puzzle.display)}</span>
     ${parts ? `<div class="exp-parts">${parts}</div>` : ''}
     ${puzzle.exp ? `<div class="exp-full">${escHtml(puzzle.exp)}</div>` : ''}
   `;

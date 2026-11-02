@@ -300,9 +300,9 @@
           <div class="field">
             <label>Clue</label>
             <input type="text" id="clue-input"
-              placeholder="e.g. Confused alien (5)"
+              placeholder="e.g. Confused alien (5)  or  Laid restaurants to waste!? (7, 8)"
               autocomplete="off" spellcheck="false" />
-            <span class="hint">Include the answer length in parentheses</span>
+            <span class="hint">Include the answer length in parentheses, e.g. (5), (7, 8) or (3-4)</span>
           </div>
           <div class="field">
             <label>Puzzle #</label>
@@ -315,9 +315,9 @@
         <div class="field">
           <label>Answer</label>
           <input type="text" id="answer-input"
-            placeholder="e.g. LIANE"
+            placeholder="e.g. LIANE  or  NATURAL DISASTER"
             autocomplete="off" autocorrect="off" spellcheck="false" />
-          <span class="hint">Letters only — no spaces or hyphens</span>
+          <span class="hint">Letters only. Separate words with spaces or hyphens, e.g. NATURAL DISASTER or MOTHER-IN-LAW</span>
         </div>
 
         <hr class="divider" />
@@ -412,12 +412,23 @@
     const codeOutput = document.getElementById('code-output');
     const btnCopy    = document.getElementById('btn-copy');
 
-    // Auto-uppercase answer field
+    // Auto-uppercase answer field (letters, spaces and hyphens allowed)
     ansInput.addEventListener('input', () => {
       const pos = ansInput.selectionStart;
-      ansInput.value = ansInput.value.toUpperCase().replace(/[^A-Z]/g, '');
+      ansInput.value = ansInput.value.toUpperCase().replace(/[^A-Z -]/g, '');
       ansInput.setSelectionRange(pos, pos);
     });
+
+    // "NATURAL DISASTER" → "7,8"; "MOTHER-IN-LAW" → "6-2-3"
+    function answerEnumeration(answer) {
+      return answer.split(' ').map(w => w.split('-').map(p => p.length).join('-')).join(',');
+    }
+
+    // Last parenthesised enumeration in the clue, e.g. "(7, 8)" → "7,8"; null if none.
+    function clueEnumeration(clue) {
+      const all = [...clue.matchAll(/\(\s*(\d+(?:\s*[,\-]\s*\d+)*)\s*\)/g)];
+      return all.length ? all[all.length - 1][1].replace(/\s+/g, '') : null;
+    }
 
     function showError(msg, field) {
       errorMsg.textContent = msg;
@@ -442,7 +453,10 @@
       clearError();
 
       const clue   = clueInput.value.trim();
-      const answer = ansInput.value.trim().toUpperCase();
+      // Normalize separators: collapse runs of spaces, trim stray hyphens/spaces
+      const answer = ansInput.value.toUpperCase()
+        .replace(/\s*-\s*/g, '-').replace(/-+/g, '-').replace(/\s+/g, ' ')
+        .replace(/^[\s-]+|[\s-]+$/g, '');
       const num    = puzzleNum.value.trim();
       const def    = parseQuotedList(defInput.value);
       const ind    = parseQuotedList(indInput.value);
@@ -452,8 +466,8 @@
       if (!clue) {
         showError('Clue is required.', clueInput); return;
       }
-      if (!/^[A-Z]{1,}$/.test(answer)) {
-        showError('Answer must contain only letters (A–Z).', ansInput); return;
+      if (!/^[A-Z]+([ -][A-Z]+)*$/.test(answer)) {
+        showError('Answer must contain only letters (A–Z), with spaces or hyphens between words.', ansInput); return;
       }
       if (!num || isNaN(num) || parseInt(num) < 1) {
         showError('Puzzle number must be a positive integer.', puzzleNum); return;
@@ -461,10 +475,14 @@
 
       // Warn if any part doesn't appear verbatim in the clue (non-fatal)
       const warnings = [];
+      const clueEnum = clueEnumeration(clue);
+      const ansEnum  = answerEnumeration(answer);
+      if (clueEnum && clueEnum !== ansEnum)
+        warnings.push(`Clue says (${clueEnum.replace(/,/g, ', ')}) but answer "${answer}" is (${ansEnum.replace(/,/g, ', ')}).`);
       const check = (parts, label) =>
         parts.forEach(p => {
           if (!clue.toLowerCase().includes(p.toLowerCase()))
-            warnings.push(`${label} "${p}" not found in clue text.`);
+            warnings.push(`${label} "${p}" not found in clue text (it won't be highlighted).`);
         });
       check(def, 'Definition');
       check(ind, 'Indicator');
@@ -472,7 +490,7 @@
       if (warnings.length) {
         const ok = confirm(
           'Warning:\n• ' + warnings.join('\n• ') +
-          '\n\nThose parts will not be highlightable in the clue. Continue anyway?'
+          '\n\nContinue anyway?'
         );
         if (!ok) return;
       }
