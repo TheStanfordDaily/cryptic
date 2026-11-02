@@ -260,21 +260,16 @@ main {
   gap: 14px;
 }
 
+/* One row per line of tiles (several only for long multi-word answers) */
 #answer-tiles {
   display: flex;
-  gap: 7px;
-  justify-content: center;
-}
-/* Long multi-word answers: one word per line */
-#answer-tiles.wrap {
   flex-direction: column;
   align-items: center;
+  gap: 7px;
 }
-
-/* Tiles for one word of the answer (stays on one line) */
+.ans-line,
 .ans-word {
   display: flex;
-  gap: inherit;
 }
 
 /* Dash between hyphenated parts, e.g. MOTHER-IN-LAW */
