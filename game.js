@@ -22,9 +22,13 @@ function loadPuzzle() {
     if (!obj.clue || !obj.answer) return null;
     // Normalize def/ind/fod to arrays (supports both old string and new array format)
     const toArr = v => Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : []);
+    const { answer, display, words } = parseAnswer(obj.answer);
+    if (!answer) return null;
     return {
       clue:   obj.clue,
-      answer: obj.answer.toUpperCase().replace(/[^A-Z]/g, ''),
+      answer,           // letters only, e.g. NATURALDISASTER (what the solver types)
+      display,          // with separators, e.g. NATURAL DISASTER
+      words,            // [['NATURAL'], ['DISASTER']]: words split on spaces, then hyphens
       def:    toArr(obj.def),
       ind:    toArr(obj.ind),
       fod:    toArr(obj.fod),
@@ -32,6 +36,22 @@ function loadPuzzle() {
       num,
     };
   } catch { return null; }
+}
+
+// Split an answer like "Natural disaster" or "mother-in-law" into words
+// (separated by spaces) made of hyphen-joined parts. Old single-word answers
+// parse to one word with one part, so existing links behave exactly as before.
+function parseAnswer(raw) {
+  const words = String(raw).toUpperCase()
+    .replace(/[^A-Z\s-]/g, '')
+    .split(/\s+/)
+    .map(w => w.split('-').filter(Boolean))
+    .filter(w => w.length);
+  return {
+    answer:  words.flat().join(''),
+    display: words.map(w => w.join('-')).join(' '),
+    words,
+  };
 }
 
 // ---- Game state ------------------------------------------------
@@ -106,22 +126,93 @@ function loadState() {
 }
 
 // ---- Build tiles -----------------------------------------------
+const MIN_ONE_LINE_TILE = 30;   // below this, break multi-word answers onto more lines
+const MAX_WRAPPED_TILE  = 44;   // largest tile size once the answer spans several lines
+const MAX_TILES_HEIGHT  = 100;  // px the tile rows may take up before the 525px embed overflows
+
+const spaceWidth  = size => Math.round(size * 0.35);
+const hyphenWidth = size => Math.round(size * 0.3);
+
+// Width of one row holding the given words: tiles + gaps + separators.
+// Between words there's an extra space slot; between hyphenated parts a narrow dash slot.
+function rowWidth(words, size, gap) {
+  const letters  = words.flat().join('').length;
+  const hyphens  = words.reduce((s, w) => s + w.length - 1, 0);
+  const spaces   = words.length - 1;
+  const slots    = letters + hyphens + spaces;   // flex children
+  return letters * size + hyphens * hyphenWidth(size) + spaces * spaceWidth(size) + (slots - 1) * gap;
+}
+
+// Greedily fill lines no wider than maxW (words are never split).
+// Returns null if some word doesn't fit on a line by itself.
+function packLines(words, size, gap, maxW) {
+  const lines = [];
+  for (const word of words) {
+    if (rowWidth([word], size, gap) > maxW) return null;
+    const last = lines[lines.length - 1];
+    if (last && rowWidth([...last, word], size, gap) <= maxW) last.push(word);
+    else lines.push([word]);
+  }
+  return lines;
+}
+
+// Pick a tile size and line breaks. One line whenever the tiles stay readable
+// (always, for single words: same sizing as before multi-word support).
+// Otherwise use the largest tiles that fit on a few lines within the height budget.
+function layoutTiles(words, maxW, gap) {
+  let size = 56;
+  while (size > 12 && rowWidth(words, size, gap) > maxW) size--;
+  if (words.length === 1 || size >= MIN_ONE_LINE_TILE) return { size, lines: [words] };
+
+  for (let s = MAX_WRAPPED_TILE; s > size; s--) {
+    const lines = packLines(words, s, gap, maxW);
+    if (lines && lines.length * s + (lines.length - 1) * gap <= MAX_TILES_HEIGHT) return { size: s, lines };
+  }
+  return { size, lines: [words] };
+}
+
 function buildAnswerTiles() {
   const container = document.getElementById('answer-tiles');
   container.innerHTML = '';
-  const n    = puzzle.answer.length;
   const maxW = Math.min(460, window.innerWidth - 48);
-  const gap  = 7;
-  const size = Math.min(56, Math.floor((maxW - gap * (n - 1)) / n));
+  // Single words keep the original 7px gap; long phrases get a little tighter.
+  const gap  = puzzle.display !== puzzle.answer && puzzle.answer.length > 10 ? 5 : 7;
+  const { size, lines } = layoutTiles(puzzle.words, maxW, gap);
   const fs   = Math.max(0.88, size / 34).toFixed(2) + 'rem';
 
-  for (let i = 0; i < n; i++) {
-    const tile = document.createElement('div');
-    tile.classList.add('ans-tile');
-    tile.dataset.index = i;
-    tile.style.cssText = `width:${size}px; height:${size}px; font-size:${fs};`;
-    container.appendChild(tile);
-  }
+  container.style.gap = `${gap}px`;
+  const slot = (cls, css) => {
+    const el = document.createElement('div');
+    el.classList.add(cls);
+    el.setAttribute('aria-hidden', 'true');
+    el.style.cssText = css;
+    return el;
+  };
+
+  let index = 0;
+  lines.forEach(lineWords => {
+    const line = document.createElement('div');
+    line.classList.add('ans-line');
+    line.style.gap = `${gap}px`;
+    lineWords.forEach((parts, wi) => {
+      if (wi > 0) line.appendChild(slot('ans-space', `width:${spaceWidth(size)}px;`));
+      const word = document.createElement('div');
+      word.classList.add('ans-word');
+      word.style.gap = `${gap}px`;
+      parts.forEach((part, pi) => {
+        if (pi > 0) word.appendChild(slot('ans-hyphen', `width:${hyphenWidth(size)}px; height:${size}px;`));
+        for (let i = 0; i < part.length; i++) {
+          const tile = document.createElement('div');
+          tile.classList.add('ans-tile');
+          tile.dataset.index = index++;
+          tile.style.cssText = `width:${size}px; height:${size}px; font-size:${fs};`;
+          word.appendChild(tile);
+        }
+      });
+      line.appendChild(word);
+    });
+    container.appendChild(line);
+  });
 }
 
 function syncTiles() {
@@ -296,7 +387,7 @@ function openBreakdownModal(won) {
     .join('');
 
   content.innerHTML = `
-    <span class="exp-answer">${escHtml(puzzle.answer)}</span>
+    <span class="exp-answer">${escHtml(puzzle.display)}</span>
     ${parts ? `<div class="exp-parts">${parts}</div>` : ''}
     ${puzzle.exp ? `<div class="exp-full">${escHtml(puzzle.exp)}</div>` : ''}
   `;

@@ -260,11 +260,35 @@ main {
   gap: 14px;
 }
 
+/* One row per line of tiles (several only for long multi-word answers) */
 #answer-tiles {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 7px;
-  justify-content: center;
 }
+.ans-line,
+.ans-word {
+  display: flex;
+}
+
+/* Dash between hyphenated parts, e.g. MOTHER-IN-LAW */
+.ans-hyphen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ans-hyphen::before {
+  content: '';
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: #9a8e83;
+}
+
+/* Extra space between words */
+.ans-space { flex-shrink: 0; }
 
 .ans-tile {
   border-radius: var(--radius-tile);
